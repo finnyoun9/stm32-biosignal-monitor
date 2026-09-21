@@ -36,12 +36,18 @@ def load_record(record: str, raw_dir: str = "data/raw") -> tuple[np.ndarray, np.
     """返回 (ppg, ecg, fs)。优先本地 data/raw/，否则从 PhysioNet 下载。"""
     local = os.path.join(raw_dir, record)
     if os.path.exists(local + ".hea") and os.path.exists(local + ".dat"):
-        rec = wfdb.rdrecord(local)
+        try:
+            rec = wfdb.rdrecord(local)
+        except Exception as exc:      # 下载未完成/文件损坏时不要让整批验证崩掉
+            raise SystemExit(f"本地文件不可读（可能是下载未完成）：{exc}")
         source = f"本地 {local}.dat"
     else:
         if wfdb is None:
             raise SystemExit("需要 wfdb：./.venv/bin/pip install wfdb")
-        rec = wfdb.rdrecord(record, pn_dir="bidmc")
+        try:
+            rec = wfdb.rdrecord(record, pn_dir="bidmc")
+        except Exception as exc:
+            raise SystemExit(f"PhysioNet 下载失败（网络慢/离线）：{exc}")
         source = f"PhysioNet bidmc/{record}"
     # BIDMC 头文件里的信号名带尾随逗号（'PLETH,'），统一规范化后再匹配
     names = [s.strip().strip(",").strip().upper() for s in rec.sig_name]

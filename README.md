@@ -29,7 +29,7 @@
 
 | 阶段 | 内容 | 验收证据 | 状态 |
 |---|---|---|---|
-| **P0 算法原型（无需硬件）** | 合成信号 + 真实公开数据集上的心率/QRS 算法实现与误差统计 | **28 项算法单测 + 5 项 C/Python 协议一致性 + 10 项驱动主机端单测全部通过；BIDMC 真实数据上 PPG 心率 vs ECG 真值 MAE 0.34 bpm** | ✅ **已完成**（详见 `docs/05-P0验证结果.md`） |
+| **P0 算法原型（无需硬件）** | 合成信号 + 真实公开数据集上的心率/QRS 算法实现与误差统计 | **28 项算法单测 + 5 项 C/Python 协议一致性 + 10 项驱动主机端单测全部通过；BIDMC 真实数据上 PPG 心率 vs ECG 真值 MAE 0.96 bpm（3 例 45 窗口）** | ✅ **已完成**（详见 `docs/05-P0验证结果.md`） |
 | **P1 采集链路真机** | MAX30102 驱动 + FreeRTOS 任务 + 串口协议，上位机实时绘图 | 实机波形截图、采集丢包率、`docs/04` 调试记录（≥3 条问题闭环） | ⏳ 待 Finn 上机 |
 | **P2 低功耗与稳定性** | 采样占空比、STOP 模式唤醒、连续运行 2h 数据 | 功耗实测（mA）+ 掉线/丢包统计 | ⏳ |
 | **P3 ECG 通道** | AD8232 采集 + QRS 检测，PPG 与 ECG 的 HR 对照 | 双通道同时采集截图 + 两条链路 HR 一致性 | ⏳ |
@@ -41,7 +41,7 @@
 | 算法单测（合成信号，真值已知） | 28/28 通过：PPG 心率误差 ≤0.4 bpm、ECG R 波灵敏度 1.000、SpO2 的 R 恢复误差 ≤0.0008、协议健壮性全通过 | `./.venv/bin/python tests/test_algorithms.py` |
 | C / Python 协议字节级一致性 | 3 类帧逐字节一致 + 2 项解析健壮性，5/5 通过 | `./.venv/bin/python tests/test_protocol_conformance.py` |
 | MAX30102 驱动（模拟 I2C 芯片） | 10/10 通过；**抓出并修掉温度小数位解析 bug** | `./.venv/bin/python tests/test_driver_host.py` |
-| 真实数据（PhysioNet BIDMC，PPG vs 同段 ECG 真值） | 2 例 32 窗口：MAE **0.34 bpm**、RMSE 0.58、P95 1.10，质量门限 32/32 | `./.venv/bin/python tools/validate_bidmc.py --records bidmc01,bidmc02 --quiet` |
+| 真实数据（PhysioNet BIDMC，PPG vs 同段 ECG 真值） | **3 例 45 窗口：MAE 0.96 bpm**、RMSE 3.14、P95 3.42，质量门限 45/45；**真实数据暴露并修掉 ECG 阈值自适应 bug（单条记录 MAE 19.33 → 2.49 bpm）** | `./.venv/bin/python tools/validate_bidmc.py --records bidmc01,bidmc02,bidmc03 --quiet` |
 | CI | GitHub Actions 每次 push 自动跑前 3 组，首次 success（32 s） | [actions](https://github.com/finnyoun9/stm32-biosignal-monitor/actions) |
 
 > **诚实边界**：P0 证明的是算法与协议的正确性；BIDMC 为 ICU 静息数据，不等价于可穿戴在运动场景下的表现。

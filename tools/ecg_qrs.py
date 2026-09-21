@@ -41,25 +41,32 @@ def ecg_qrs_detect(x: np.ndarray, fs: float, low: float = 5.0, high: float = 15.
     integrated = np.convolve(squared, np.ones(win) / win, mode="same")
 
     refractory = max(1, int(refractory_ms / 1000.0 * fs))
-    # 初值：用前 2 秒估计噪声峰值
+    # 初值：用前 2 秒估计信号峰与噪声峰
     head = integrated[: max(win, int(2 * fs))]
     spki = float(np.max(head)) if len(head) else float(np.max(integrated))
     npki = float(np.mean(head)) if len(head) else float(np.mean(integrated))
 
-    peaks: list[int] = []
+    # ⚠️ 真实数据踩过的坑（bidmc03，2026-09-21）：
+    # 初版只更新 SPKI、NPKI 固定为前 2 秒的均值 → 当记录开头恰好安静、后面噪声抬高时，
+    # 阈值长期偏低，积分信号一直高于阈值，于是**每过一个不应期就误报一个峰**（间隔恒为 200 ms），
+    # 心率被抬到 107 bpm（真值 ~76）。正确做法是论文里的做法：**SPKI 与 NPKI 都随局部极大值更新**。
+    candidates, _ = find_peaks(integrated, distance=1)
+    accepted: list[int] = []
     last = -refractory * 2
-    for i in range(len(integrated)):
-        if integrated[i] < npki + 0.25 * (spki - npki):
-            continue
-        if i - last < refractory:
-            # 不应期内：只保留更高者
-            if peaks and integrated[i] > integrated[peaks[-1]]:
-                peaks[-1] = i
-                last = i
-            continue
-        peaks.append(i)
-        last = i
-        spki = 0.125 * integrated[i] + 0.875 * spki
+    for idx in candidates:
+        value = float(integrated[idx])
+        threshold = npki + 0.25 * (spki - npki)
+        if value > threshold:
+            spki = 0.125 * value + 0.875 * spki
+            if idx - last >= refractory:
+                accepted.append(int(idx))
+                last = int(idx)
+            elif accepted and value > float(integrated[accepted[-1]]):
+                accepted[-1] = int(idx)      # 不应期内保留更高者
+                last = int(idx)
+        else:
+            npki = 0.125 * value + 0.875 * npki
+    peaks = accepted
     if not peaks:
         return np.array([], dtype=int)
 
