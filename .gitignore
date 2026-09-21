@@ -1,0 +1,22 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# 本地数据：PhysioNet 原始数据与实测采集数据都不入库（体积 + 许可）
+data/raw/
+data/*.csv
+data/*.png
+!data/.gitkeep
+
+# PlatformIO / 构建产物
+firmware/.pio/
+firmware/.vscode/
+*.elf
+*.bin
+*.hex
+*.map
+
+# macOS
+.DS_Store
