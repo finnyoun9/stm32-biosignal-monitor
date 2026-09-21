@@ -5,7 +5,11 @@
  *   /tmp/ppg_algo_host data/synth_hr72.csv ppg_ir 100
  *
  * 输出（供 tests/test_algo_conformance.py 解析）：
- *   RESULT hr=72.10 pi=3.084 beats=35 quality=1 samples=3750
+ *   RESULT hr=72.10 pi=3.084 beats=35 quality=1 ready=1 samples=3750 rows=3750
+ *
+ * 说明：这里刻意**不用 strtok_r**——在 `-std=c99` 严格模式下 glibc 会把它藏起来（需要
+ * _POSIX_C_SOURCE 才能声明），本机 macOS 能编译、CI 的 Linux 直接报错。手写一个只读的
+ * 字段提取函数既跨平台，也没有可重入/破坏原缓冲的问题。
  */
 
 #include <stdio.h>
@@ -14,22 +18,46 @@
 
 #include "ppg_algo.h"
 
-#define MAX_COLS 16
 #define LINE_MAX_LEN 4096
+#define FIELD_MAX_LEN 128
+#define MAX_COLS 32
+
+/* 把第 idx 个（0 基）逗号分隔字段复制到 out；不存在或为空返回 0。只读，不修改 line。 */
+static int field_copy(const char *line, int idx, char *out, size_t out_len)
+{
+    int cur = 0;
+    const char *p = line;
+    for (;;) {
+        const char *start = p;
+        while (*p != '\0' && *p != ',' && *p != '\r' && *p != '\n') {
+            p++;
+        }
+        if (cur == idx) {
+            const size_t n = (size_t)(p - start);
+            if (n == 0 || n + 1 > out_len) {
+                return 0;
+            }
+            memcpy(out, start, n);
+            out[n] = '\0';
+            return 1;
+        }
+        if (*p != ',') {
+            return 0;
+        }
+        p++;
+        cur++;
+    }
+}
 
 static int find_column(const char *header, const char *name)
 {
-    char buf[LINE_MAX_LEN];
-    snprintf(buf, sizeof(buf), "%s", header);
-    int idx = 0;
-    char *save = NULL;
-    for (char *tok = strtok_r(buf, ",\r\n", &save); tok != NULL; tok = strtok_r(NULL, ",\r\n", &save)) {
-        if (strcmp(tok, name) == 0) {
-            return idx;
+    char field[FIELD_MAX_LEN];
+    for (int i = 0; i < MAX_COLS; ++i) {
+        if (!field_copy(header, i, field, sizeof(field))) {
+            return -1;
         }
-        idx++;
-        if (idx >= MAX_COLS) {
-            break;
+        if (strcmp(field, name) == 0) {
+            return i;
         }
     }
     return -1;
@@ -66,23 +94,19 @@ int main(int argc, char **argv)
 
     ppg_algo_t algo;
     ppg_algo_init(&algo, fs);
+    if (!algo.ready) {
+        fclose(fh);
+        fprintf(stderr, "不支持的采样率 %.1f Hz（支持 50/100/125/200 的 ±10%%）\n", (double)fs);
+        return 64;
+    }
 
+    char field[FIELD_MAX_LEN];
     uint32_t rows = 0;
     while (fgets(line, sizeof(line), fh) != NULL) {
-        int idx = 0;
-        char *save = NULL;
-        const char *value = NULL;
-        for (char *tok = strtok_r(line, ",\r\n", &save); tok != NULL; tok = strtok_r(NULL, ",\r\n", &save)) {
-            if (idx == col_idx) {
-                value = tok;
-                break;
-            }
-            idx++;
-        }
-        if (value == NULL) {
+        if (!field_copy(line, col_idx, field, sizeof(field))) {
             continue;
         }
-        ppg_algo_push(&algo, (float)atof(value));
+        ppg_algo_push(&algo, (float)atof(field));
         rows++;
     }
     fclose(fh);
