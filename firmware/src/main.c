@@ -8,6 +8,9 @@
  *     MAX30102 驱动逻辑（tests/test_driver_host.py）；
  *   - 上机后请把实际现象与修正记录到 docs/04-调试记录.md（模板已给）。
  *
+ * 算法层：ProcTask 调用 firmware/app/ppg_algo.c（流式因果实现），
+ *         已通过 tests/test_algo_conformance.py 与 Python 版本对齐（合成偏差 0.0 bpm）。
+ *
  * 任务划分与理由：
  *   AcqTask    —— 由 A_FULL 中断/200 Hz 节拍驱动读 FIFO，只做「取数据 + 入队」，不做运算
  *                 （保证采集时序不被算法阻塞，这是采集链路最容易被写坏的地方）
@@ -21,12 +24,13 @@
 #include "queue.h"
 
 #include "max30102.h"
+#include "ppg_algo.h"
 #include "protocol.h"
+#include <stdio.h>
 
 #define ACQ_SAMPLE_RATE_HZ  100u
 #define ACQ_CHUNK_SAMPLES   10u     /* 每 100 ms 读一次，留够 A_FULL 的余量 */
 #define PPG_QUEUE_LENGTH    64u
-#define HR_WINDOW_SAMPLES   (ACQ_SAMPLE_RATE_HZ * 10u)   /* 10 s 滑窗 */
 
 extern I2C_HandleTypeDef hi2c1;
 extern UART_HandleTypeDef huart1;
@@ -126,25 +130,41 @@ static void AcqTask(void *arg)
 static void ProcTask(void *arg)
 {
     (void)arg;
-    static uint32_t red_buf[HR_WINDOW_SAMPLES];
-    static uint32_t ir_buf[HR_WINDOW_SAMPLES];
-    uint32_t idx = 0;
-    uint32_t filled = 0;
+    ppg_algo_t algo;
+    ppg_algo_init(&algo, (float)ACQ_SAMPLE_RATE_HZ);
+    uint8_t seq = 0;
 
     for (;;) {
         ppg_sample_t s;
         if (xQueueReceive(s_ppg_queue, &s, portMAX_DELAY) != pdPASS) {
             continue;
         }
-        red_buf[idx] = s.red;
-        ir_buf[idx] = s.ir;
-        idx = (idx + 1u) % HR_WINDOW_SAMPLES;
-        if (filled < HR_WINDOW_SAMPLES) {
-            filled++;
+        /* 逐样本推进入流式算法（因果滤波 + 自适应阈值 + RR 中位数），算法层见 firmware/app/ppg_algo.c。
+         * 该实现已在主机端与 Python 版本做过一致性验证（tests/test_algo_conformance.py：
+         * 合成信号偏差 0.0 bpm，BIDMC 真实数据窗口偏差 0.5–1.1 bpm）。 */
+        ppg_algo_push(&algo, (float)s.ir);
+
+        /* 每 1 s 上报一次心率与质量（10 个采集块 × 10 样本 = 100 样本 = 1 s @100 Hz） */
+        if (++seq % 10u == 0u) {
+            const ppg_result_t r = ppg_algo_result(&algo);
+            uint8_t payload[6];
+            payload[0] = s_max30102.led_current;
+            payload[1] = (uint8_t)(ACQ_SAMPLE_RATE_HZ & 0xFFu);
+            payload[2] = (uint8_t)(ACQ_SAMPLE_RATE_HZ >> 8);
+            payload[3] = r.quality_ok ? 1u : 0u;
+            payload[4] = (uint8_t)(s_max30102.fifo_overflows & 0xFFu);
+            payload[5] = (uint8_t)((s_max30102.fifo_overflows >> 8) & 0xFFu);
+            send_frame(PROTO_TYPE_STATUS, seq, payload, sizeof(payload));
+
+            /* HR 单独用 LOG 帧上报（文本便于串口现场排查；量产版本可换成二进制字段） */
+            char msg[48];
+            const int n = snprintf(msg, sizeof(msg), "hr=%.1f pi=%.3f beats=%u quality=%d",
+                                   (double)r.hr_bpm, (double)r.pi_percent, r.beats,
+                                   r.quality_ok ? 1 : 0);
+            if (n > 0) {
+                send_frame(PROTO_TYPE_LOG, seq, (const uint8_t *)msg, (uint16_t)n);
+            }
         }
-        /* TODO(P1)：窗口填满后调用算法层（把 tools/ppg_hr.py 的链路移植为 C）。
-         * 移植时保持与 Python 侧相同的参数（0.5–4 Hz 带通、k=0.6、RR 270–2000 ms），
-         * 便于用同一批数据交叉验证 C 与 Python 的结果。 */
     }
 }
 

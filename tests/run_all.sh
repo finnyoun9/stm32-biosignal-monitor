@@ -17,19 +17,23 @@ if [ ! -x "$PY" ]; then
   exit 1
 fi
 
-echo "== 1/4 算法单测 =="
+echo "== 1/5 算法单测（Python） =="
 "$PY" tests/test_algorithms.py
 
 echo
-echo "== 2/4 C/Python 协议一致性 =="
+echo "== 2/5 C/Python 协议一致性 =="
 "$PY" tests/test_protocol_conformance.py
 
 echo
-echo "== 3/4 MAX30102 驱动单测（模拟芯片） =="
+echo "== 3/5 MAX30102 驱动单测（模拟芯片） =="
 "$PY" tests/test_driver_host.py
 
 echo
-echo "== 4/4 真实数据验证（BIDMC） =="
+echo "== 4/5 C/Python PPG 算法一致性（固件侧实现） =="
+"$PY" tests/test_algo_conformance.py
+
+echo
+echo "== 5/5 真实数据验证（BIDMC） =="
 RECORDS=""
 for f in data/raw/bidmc*.hea; do
   [ -e "$f" ] || continue

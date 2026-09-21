@@ -32,3 +32,6 @@ jobs:
 
       - name: MAX30102 driver host tests (simulated I2C chip)
         run: python tests/test_driver_host.py
+
+      - name: PPG algorithm conformance (C firmware vs Python, synthetic signals)
+        run: python tests/test_algo_conformance.py
