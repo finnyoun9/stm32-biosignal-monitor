@@ -35,3 +35,6 @@ jobs:
 
       - name: PPG algorithm conformance (C firmware vs Python, synthetic signals)
         run: python tests/test_algo_conformance.py
+
+      - name: Power budget conformance (C firmware vs Python)
+        run: python tests/test_power_budget.py

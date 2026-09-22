@@ -29,9 +29,9 @@
 
 | 阶段 | 内容 | 验收证据 | 状态 |
 |---|---|---|---|
-| **P0 算法原型（无需硬件）** | 合成信号 + 真实公开数据集上的心率/QRS 算法实现与误差统计 | **28 项算法单测 + 5 项协议一致性 + 10 项驱动单测 + C/Python 算法一致性全部通过；BIDMC 真实数据上 PPG 心率 vs ECG 真值 MAE 0.57 bpm（6 例 93 窗口）** | ✅ **已完成**（详见 `docs/05-P0验证结果.md`） |
+| **P0 算法原型（无需硬件）** | 合成信号 + 真实公开数据集上的心率/QRS 算法实现与误差统计 | **28 项算法单测 + 5 项协议一致性 + 10 项驱动单测 + C/Python 算法一致性全部通过；BIDMC 真实数据上 PPG 心率 vs ECG 真值 MAE 0.45 bpm（8 例 125 窗口）** | ✅ **已完成**（详见 `docs/05-P0验证结果.md`） |
 | **P1 采集链路真机** | MAX30102 驱动 + FreeRTOS 任务 + 串口协议，上位机实时绘图 | 实机波形截图、采集丢包率、`docs/04` 调试记录（≥3 条问题闭环） | ⏳ 待 Finn 上机 |
-| **P2 低功耗与稳定性** | 采样占空比、STOP 模式唤醒、连续运行 2h 数据 | 功耗实测（mA）+ 掉线/丢包统计 | ⏳ |
+| **P2 低功耗与稳定性** | 采样占空比、STOP 模式唤醒、连续运行 2h 数据 | 功耗实测（mA）+ 掉线/丢包统计 | 🔄 **预算与反解已完成并验证**（`docs/06-P2低功耗设计.md`）；真机实测待上机 |
 | **P3 ECG 通道** | AD8232 采集 + QRS 检测，PPG 与 ECG 的 HR 对照 | 双通道同时采集截图 + 两条链路 HR 一致性 | ⏳ |
 
 ### P0 实测结果（可复现）
@@ -42,8 +42,10 @@
 | C / Python 协议字节级一致性 | 3 类帧逐字节一致 + 2 项解析健壮性，5/5 通过 | `./.venv/bin/python tests/test_protocol_conformance.py` |
 | MAX30102 驱动（模拟 I2C 芯片） | 10/10 通过；**抓出并修掉温度小数位解析 bug** | `./.venv/bin/python tests/test_driver_host.py` |
 | **固件侧 C 算法 vs Python** | 合成偏差 0.0 bpm、BIDMC 窗口偏差 0.0–1.1 bpm；顺带修掉「75–130 Hz 静默套用 100 Hz 系数」的隐患（现只支持 50/100/125/200 Hz，其余明确失败） | `./.venv/bin/python tests/test_algo_conformance.py` |
-| 真实数据（PhysioNet BIDMC，PPG vs 同段 ECG 真值） | **6 例 93 窗口：MAE 0.57 bpm**、RMSE 2.21、P95 1.14，质量门限 93/93；**真实数据暴露并修掉 ECG 阈值自适应 bug（单条记录 MAE 19.33 → 2.49 bpm）** | `./.venv/bin/python tools/validate_bidmc.py --records bidmc01,...,bidmc06 --quiet` |
-| CI | GitHub Actions 每次 push 自动跑 4 组（算法/协议/驱动/C-Python 一致性），多次 success | [actions](https://github.com/finnyoun9/stm32-biosignal-monitor/actions) |
+| 真实数据（PhysioNet BIDMC，PPG vs 同段 ECG 真值） | **8 例 125 窗口：MAE 0.45 bpm**、RMSE 1.91、P95 1.18，质量门限 125/125；**真实数据暴露并修掉 ECG 阈值自适应 bug（单条记录 MAE 19.33 → 2.49 bpm）** | `./.venv/bin/python tools/validate_bidmc.py --records bidmc01,...,bidmc06 --quiet` |
+| 低功耗预算（C vs Python） | **7 例配置逐例一致 + 4 例手算对照 + 反解校验全部通过**：1 分钟一次 → 887 µA / 200 mAh 约 9.4 天；给定 500 µA 目标反解出每周期最多醒 896 ms；目标低于睡眠电流时明确判不可达 | `./.venv/bin/python tests/test_power_budget.py` |
+| 真实数据（BIDMC，8 例 125 窗口） | **MAE 0.45 bpm**、RMSE 1.91、P95 1.18，质量门限 125/125 | `./.venv/bin/python tools/validate_bidmc.py --records bidmc01,...,bidmc08 --quiet` |
+| CI | GitHub Actions 每次 push 自动跑 5 组（算法/协议/驱动/C-Python 算法/功耗），多次 success | [actions](https://github.com/finnyoun9/stm32-biosignal-monitor/actions) |
 
 > **诚实边界**：P0 证明的是算法与协议的正确性；BIDMC 为 ICU 静息数据，不等价于可穿戴在运动场景下的表现。
 > 真机采集（P1）未完成前，简历与对外沟通中不写「采集链路已跑通」。
@@ -54,7 +56,7 @@
 ## 四、目录结构
 
 ```
-docs/        调研、范围与验收标准、硬件接线、信号处理笔记、调试记录模板
+docs/        调研、范围与验收标准、硬件接线、信号处理笔记、调试记录模板、低功耗设计
 tools/       算法原型、合成信号、串口协议、数据集验证、绘图（Python）
 tests/       算法单元测试（合成信号，含已知真值）
 firmware/    PlatformIO 固件工程（STM32F103 + FreeRTOS + MAX30102）
