@@ -12,6 +12,12 @@
  */
 
 #include <math.h>
+
+/* M_PI 不是 C 标准的一部分：macOS 的 math.h 默认暴露它，glibc 在 -std=c99 严格模式下不暴露，
+ * 于是本机编译通过、CI（Linux）报 "M_PI undeclared"。自己定义一份，跨平台一致。 */
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 
