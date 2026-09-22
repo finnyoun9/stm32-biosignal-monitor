@@ -30,6 +30,11 @@ int main(void)
     size_t n = proto_encode_ppg_batch(7u, 123456u, samples, 3u, frame, sizeof(frame));
     print_hex("PPG_BATCH", frame, n);
 
+    /* 1b) ECG_BATCH：与 Python 用例一致的样本（含 12 位与边界值） */
+    const uint16_t ecg_samples[] = {0u, 2048u, 4095u, 65535u};
+    n = proto_encode_ecg_batch(5u, 1000u, ecg_samples, 4u, frame, sizeof(frame));
+    print_hex("ECG_BATCH", frame, n);
+
     /* 2) STATUS */
     n = proto_encode_status(9u, 200u, 50u, false, 17u, frame, sizeof(frame));
     print_hex("STATUS", frame, n);

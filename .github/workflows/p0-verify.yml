@@ -41,3 +41,9 @@ jobs:
 
       - name: ECG QRS conformance (C firmware vs Python)
         run: python tests/test_ecg_conformance.py
+
+      - name: Dual-channel capture selftest (no hardware)
+        run: python tools/serial_capture.py --selftest --out /tmp/ppg.csv --out-ecg /tmp/ecg.csv
+
+      - name: Dual-channel acceptance logic (synthetic + negative control)
+        run: python tests/test_dual_channel_acceptance.py

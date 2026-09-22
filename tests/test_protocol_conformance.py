@@ -46,6 +46,7 @@ def py_frames() -> dict[str, str]:
         "STATUS": protocol.status(seq=9, led_current=200, fs_hz=50, quality_ok=False,
                                   dropped=17).encode().hex(),
         "LOG": protocol.log(seq=2, text="boot ok").encode().hex(),
+        "ECG_BATCH": protocol.ecg_batch(seq=5, ts_ms=1000, samples=[0, 2048, 4095, 65535]).encode().hex(),
     }
     return frames
 
@@ -54,7 +55,7 @@ def main() -> int:
     c = build_and_run()
     p = py_frames()
     failures = 0
-    for tag in ("PPG_BATCH", "STATUS", "LOG"):
+    for tag in ("PPG_BATCH", "ECG_BATCH", "STATUS", "LOG"):
         same = c.get(tag) == p.get(tag)
         print(f"{'PASS' if same else 'FAIL'}  {tag}  C={c.get(tag)}  PY={p.get(tag)}")
         failures += 0 if same else 1
@@ -67,7 +68,7 @@ def main() -> int:
     failures += 0 if resync_ok else 1
     failures += 0 if crc_ok else 1
 
-    print(f"\n合计 5 项，失败 {failures}")
+    print(f"\n合计 7 项，失败 {failures}")
     return 1 if failures else 0
 
 

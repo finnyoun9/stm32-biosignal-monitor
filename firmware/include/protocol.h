@@ -25,6 +25,7 @@
 #define PROTO_TYPE_PPG_BATCH 0x01u
 #define PROTO_TYPE_STATUS 0x02u
 #define PROTO_TYPE_LOG 0x03u
+#define PROTO_TYPE_ECG_BATCH 0x04u
 #define PROTO_TYPE_CMD 0x81u
 
 /* ── CRC ─────────────────────────────────────────────────────────────── */
@@ -99,6 +100,27 @@ static inline size_t proto_encode_ppg_batch(uint8_t seq, uint32_t ts_ms,
         p[5] = (uint8_t)((red >> 16) & 0xFFu);
     }
     return proto_encode(PROTO_TYPE_PPG_BATCH, seq, payload, payload_len, out, out_cap);
+}
+
+/* ECG_BATCH：ts_ms(4, LE) + N×(ecg:2, LE)。AD8232 走 MCU 的 12 位 ADC，2 字节足够。 */
+static inline size_t proto_encode_ecg_batch(uint8_t seq, uint32_t ts_ms,
+                                            const uint16_t *samples, uint16_t count,
+                                            uint8_t *out, size_t out_cap)
+{
+    const uint16_t payload_len = (uint16_t)(4u + 2u * count);
+    if (payload_len > PROTO_MAX_PAYLOAD) {
+        return 0;
+    }
+    uint8_t payload[PROTO_MAX_PAYLOAD];
+    payload[0] = (uint8_t)(ts_ms & 0xFFu);
+    payload[1] = (uint8_t)((ts_ms >> 8) & 0xFFu);
+    payload[2] = (uint8_t)((ts_ms >> 16) & 0xFFu);
+    payload[3] = (uint8_t)((ts_ms >> 24) & 0xFFu);
+    for (uint16_t i = 0; i < count; ++i) {
+        payload[4u + 2u * i] = (uint8_t)(samples[i] & 0xFFu);
+        payload[5u + 2u * i] = (uint8_t)((samples[i] >> 8) & 0xFFu);
+    }
+    return proto_encode(PROTO_TYPE_ECG_BATCH, seq, payload, payload_len, out, out_cap);
 }
 
 /* STATUS：led_current(1) + sample_rate_hz(2, LE) + quality_ok(1) + dropped(2, LE) */

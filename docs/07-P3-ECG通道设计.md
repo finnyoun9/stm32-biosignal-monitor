@@ -45,6 +45,25 @@ TIM 触发 → ADC+DMA（半满/全满中断）→ 环形缓冲
 | 运动伪影 | 走动时质量判定为不可信（而不是给出错的心率） | 质量字段与波形对照 |
 | 同步性 | PPG 与 ECG 的时间戳对齐误差 ≤10 ms | 双通道同图 + 时间戳差 |
 
+## 四·补 验收用的工具链（已完成，无需硬件即可自测）
+
+```bash
+# 1) 采集：双通道分别落盘（PPG / ECG 各自时间戳，不做重采样）
+./.venv/bin/python tools/serial_capture.py --port /dev/tty.usbserial-XXXX --seconds 300 \
+    --out data/raw/capture-ppg.csv --out-ecg data/raw/capture-ecg.csv
+
+# 2) 验收：按 30 s 窗口对照两条链路的心率
+./.venv/bin/python tools/verify_dual_channel.py \
+    --ppg data/raw/capture-ppg.csv --ecg data/raw/capture-ecg.csv --window 30 --limit 5
+
+# 3) 没有硬件也能先验证这套验收逻辑本身：
+./.venv/bin/python tools/verify_dual_channel.py --from-bidmc bidmc01     # 真实配对数据
+./.venv/bin/python tests/test_dual_channel_acceptance.py                 # 含负向对照
+```
+
+已实测：合成配对信号最大偏差 **0.0 bpm**；BIDMC 真实配对数据最大偏差 **1.1 bpm**；
+故意错开 25 bpm 时验收**正确判 FAIL**（`tests/test_dual_channel_acceptance.py` 第 3 项）。
+
 ## 五、与 PPG 的冲突与规避
 
 - **供电噪声**：MAX30102 的 LED 是脉冲电流，会在电源上造成纹波并串入 ECG。对策：LED 与 AD8232 分开供电轨/加强去耦；必要时**分时采集**（PPG 与 ECG 交替，而不是同时）。

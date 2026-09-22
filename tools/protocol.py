@@ -17,7 +17,11 @@
     0x01 PPG_BATCH  payload = ts_ms(4B LE) + N×(ir:3B LE, red:3B LE)   每样本对 6 字节（18 位原始值）
     0x02 STATUS     payload = led_current(1B) + sample_rate_hz(2B LE) + quality_ok(1B) + dropped(2B LE)
     0x03 LOG        payload = UTF-8 文本（固件侧错误/状态，便于现场排查）
+    0x04 ECG_BATCH  payload = ts_ms(4B LE) + N×(ecg:2B LE)      每样本 2 字节（12 位 ADC 右对齐）
     0x81 CMD        payload = 命令字节（上位机 → 固件：开始/停止/改采样率）
+
+ECG 用 2 字节而 PPG 用 3 字节：MAX30102 输出 18 位原始值，而 AD8232 走 MCU 的 12 位 ADC，
+2 字节足够且省一半带宽（250 Hz × 2 B = 500 B/s，115200 波特率下毫无压力）。
 
 与固件的一致性：`firmware/include/protocol.h` 是同一份格式的 C 实现，
 任何改动必须两边同时改，并跑 `tests/test_algorithms.py` 里的协议用例。
@@ -32,6 +36,7 @@ SOF = b"\xAA\x55"
 TYPE_PPG_BATCH = 0x01
 TYPE_STATUS = 0x02
 TYPE_LOG = 0x03
+TYPE_ECG_BATCH = 0x04
 TYPE_CMD = 0x81
 
 MAX_PAYLOAD = 512
@@ -59,6 +64,18 @@ class Frame:
         body = struct.pack("<BBH", self.type, self.seq, len(self.payload)) + self.payload
         return SOF + body + struct.pack("<H", crc16_ccitt(body))
 
+    def decode_ecg(self) -> tuple[int, list[int]]:
+        """解析 ECG_BATCH：返回 (首个样本时间戳 ms, [ecg, ...])。"""
+        if self.type != TYPE_ECG_BATCH:
+            raise ValueError("not an ECG batch frame")
+        if len(self.payload) < 4 or (len(self.payload) - 4) % 2 != 0:
+            raise ValueError("bad ECG payload length")
+        ts_ms = struct.unpack_from("<I", self.payload, 0)[0]
+        samples: list[int] = []
+        for off in range(4, len(self.payload), 2):
+            samples.append(struct.unpack_from("<H", self.payload, off)[0])
+        return ts_ms, samples
+
     def decode_ppg(self) -> tuple[int, list[tuple[int, int]]]:
         """解析 PPG_BATCH：返回 (首个样本时间戳 ms, [(ir, red), ...])。"""
         if self.type != TYPE_PPG_BATCH:
@@ -81,6 +98,14 @@ def ppg_batch(seq: int, ts_ms: int, samples: list[tuple[int, int]]) -> Frame:
         payload += int(ir & 0x3FFFF).to_bytes(3, "little")
         payload += int(red & 0x3FFFF).to_bytes(3, "little")
     return Frame(TYPE_PPG_BATCH, seq & 0xFF, payload)
+
+
+def ecg_batch(seq: int, ts_ms: int, samples: list[int]) -> Frame:
+    """构造 ECG 批量帧（每样本 2 字节，12 位 ADC 原始值）。"""
+    payload = struct.pack("<I", ts_ms)
+    for value in samples:
+        payload += int(value & 0xFFFF).to_bytes(2, "little")
+    return Frame(TYPE_ECG_BATCH, seq & 0xFF, payload)
 
 
 def status(seq: int, led_current: int, fs_hz: int, quality_ok: bool, dropped: int) -> Frame:
