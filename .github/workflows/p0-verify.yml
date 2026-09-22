@@ -10,6 +10,23 @@ on:
   workflow_dispatch:
 
 jobs:
+  firmware-build:
+    # 「固件可编译」也应该是被持续验证的结论，而不是一次性说法
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build firmware (STM32F103C8T6 + FreeRTOS)
+        working-directory: firmware
+        run: pio run
+
   verify:
     runs-on: ubuntu-latest
     steps:

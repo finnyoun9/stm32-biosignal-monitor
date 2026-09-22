@@ -19,7 +19,8 @@
 | MAX30102 驱动 | 主机端（模拟 I2C 芯片）**10/10**；曾抓到 `TEMP_FRAC` 小数位解析 bug | `tests/test_driver_host.py` |
 | 低功耗预算 | 1 分钟测量一次 → **887 µA**、200 mAh 约 **9.4 天**；连续采样对照 22 mA / 9 h；给定 500 µA 反解出每周期最多醒 **896 ms** | `tools/power_budget.py --sweep`、`tests/test_power_budget.py` |
 | 工频陷波 | 深度 **−95…−110 dB**、10 Hz 保持 −0.00 dB；**50 Hz 干扰 ≥2×R 波时不陷波检出失败、开陷波恢复正常** | `tests/test_notch.py`、`test_notch_ecg.py` |
-| CI | GitHub Actions 每次 push 自动跑 **11 组**离线验证 | [actions](https://github.com/finnyoun9/stm32-biosignal-monitor/actions) |
+| 固件可编译 | `pio run` 通过：RAM **49.1%** / Flash **32.8%**（ARM GCC）；CI 每次 push 重新验证 | `cd firmware && pio run` |
+| CI | GitHub Actions 每次 push 自动跑 **11 组**离线验证 + 1 个固件编译任务 | [actions](https://github.com/finnyoun9/stm32-biosignal-monitor/actions) |
 
 ## 工程判断（比数字更能说明问题）
 
@@ -31,12 +32,13 @@
 
 ## 技术栈
 
-C（STM32 HAL）、FreeRTOS、I2C/ADC/DMA/定时器、PlatformIO；
+C（STM32 HAL）、FreeRTOS V10.3.1、I2C/ADC/DMA/定时器、PlatformIO（`pio run` 可复现编译）；
+基础工程约定（时钟/中断别名/串口与 I2C 初始化写法、FreeRTOS 内核）移植自本人的 STM32 环境终端项目（同板型）。
 Python（numpy/scipy/matplotlib/wfdb）做算法原型、协议实现、数据验证与上位机。
 
 ## 边界（如实说明）
 
-- **真机采集（P1/P2/P3 实测）尚未完成**：目前完成的是算法层（含公开真实数据验证）、驱动主机端验证、协议、上位机与验收工具。真机需要 MAX30102（约 10–20 元）与可选 AD8232（约 25 元）模块。
+- **真机采集（P1/P2/P3 实测）尚未完成**：目前完成的是算法层（含公开真实数据验证）、驱动主机端验证、协议、上位机与验收工具，以及**可编译的固件**（采集任务/上报链路已就绪）。真机需要 MAX30102（约 10–20 元）与可选 AD8232（约 25 元）模块。
 - 血氧只做**方法链路验证，未用参考血氧仪标定**，数值不可信。
 - BIDMC 是 **ICU 静息数据**（卧床、心率范围集中、运动伪影少），不等于可穿戴在运动场景下的表现。
 - 本项目**不是医疗设备**，不下任何医学结论。
