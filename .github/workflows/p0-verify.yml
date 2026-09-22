@@ -47,3 +47,6 @@ jobs:
 
       - name: Dual-channel acceptance logic (synthetic + negative control)
         run: python tests/test_dual_channel_acceptance.py
+
+      - name: Capture report selftest (good vs bad data)
+        run: python tests/test_inspect_capture.py
