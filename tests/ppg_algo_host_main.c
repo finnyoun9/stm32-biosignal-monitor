@@ -1,7 +1,7 @@
 /* PPG 算法主机端运行器：把 CSV 里的 PPG 列喂给 C 算法，输出心率/质量结果。
  *
  * 用法：
- *   cc -std=c99 -O2 -I firmware/app tests/ppg_algo_host_main.c firmware/app/ppg_algo.c -lm -o /tmp/ppg_algo_host
+ *   cc -std=c99 -O2 -I firmware/app tests/ppg_algo_host_main.c firmware/app/ppg_algo.c firmware/app/biquad.c -lm -o /tmp/ppg_algo_host
  *   /tmp/ppg_algo_host data/synth_hr72.csv ppg_ir 100
  *
  * 输出（供 tests/test_algo_conformance.py 解析）：

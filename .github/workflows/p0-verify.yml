@@ -38,3 +38,6 @@ jobs:
 
       - name: Power budget conformance (C firmware vs Python)
         run: python tests/test_power_budget.py
+
+      - name: ECG QRS conformance (C firmware vs Python)
+        run: python tests/test_ecg_conformance.py

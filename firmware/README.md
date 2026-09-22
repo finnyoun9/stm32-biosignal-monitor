@@ -7,6 +7,7 @@
 | 串口帧协议 | `include/protocol.h` | ✅ **主机端已验证**：与 `tools/protocol.py` 逐字节一致（`tests/test_protocol_conformance.py`，5/5 通过） |
 | MAX30102 驱动 | `app/max30102.c/.h` | ✅ **主机端已验证**：用模拟 I2C 芯片跑 10 项单测（`tests/test_driver_host.py`），含 FIFO 指针回绕、溢出恢复、18 位拼接、非法 SR/PW 组合拒绝、温度换算 |
 | PPG 心率/质量算法（C 流式） | `app/ppg_algo.c/.h` | ✅ **主机端已验证**：与 Python 版本在同一批数据上偏差 0.0 bpm（合成）/ 0.5–1.1 bpm（BIDMC 真实数据），见 `tests/test_algo_conformance.py`；滤波系数由 `tools/gen_biquad_coeffs.py` 生成 |
+| ECG QRS 检测（P3 算法层） | `app/ecg_algo.c/.h` | ✅ **主机端已验证**：合成 60/75/100 bpm 偏差 0.0 bpm、BIDMC 真实 II 导联窗口偏差 0.0–1.1 bpm（`tests/test_ecg_conformance.py`） |
 | 任务与 HAL 传输层 | `src/main.c` | ⚠️ **未编译验证**：依赖 CubeMX 生成的 `Core/` 与 FreeRTOS 源码，需按下面步骤生成后编译 |
 | 低功耗（P2）、ECG（P3） | — | ⏳ 未开始 |
 
@@ -71,4 +72,4 @@ pio device monitor -b 115200   # 串口（二进制帧，需用上位机解析�
 - [ ] `ReportTask` 的 PPG_BATCH 批量打包（当前只发心跳日志）
 - [ ] 串口抓包与 CSV 落盘脚本（`tools/serial_capture.py`）
 - [ ] P2：STOP 模式 + RTC 唤醒的占空比采样
-- [ ] P3：AD8232 + ADC/DMA 的 ECG 通道
+- [ ] P3：AD8232 + ADC/DMA 的 ECG 通道（**算法层已就绪**，见 `docs/07-P3-ECG通道设计.md`）

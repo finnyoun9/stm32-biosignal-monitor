@@ -22,19 +22,16 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "biquad.h"
+
 #define PPG_ALGO_MAX_RR 8          /* RR 中位数使用的最近心搏数 */
 #define PPG_ALGO_MIN_RR_MS 270.0f  /* 220 bpm */
 #define PPG_ALGO_MAX_RR_MS 2000.0f /* 30 bpm */
 
 typedef struct {
-    float b0, b1, b2, a1, a2;
-    float z1, z2;
-} ppg_biquad_t;
-
-typedef struct {
     float fs;
-    ppg_biquad_t hp;               /* 0.5 Hz 高通 */
-    ppg_biquad_t lp;               /* 4 Hz 低通 */
+    biquad_t hp;                   /* 0.5 Hz 高通（系数见 tools/gen_biquad_coeffs.py） */
+    biquad_t lp;                   /* 4 Hz 低通 */
 
     /* DC 与包络估计：用于自适应阈值 */
     float dc;

@@ -45,25 +45,7 @@ static const float HP_A_200[3] = {1.000000000f, -1.977786484f, 0.978030508f};
 static const float LP_B_200[3] = {0.003621682f, 0.007243363f, 0.003621682f};
 static const float LP_A_200[3] = {1.000000000f, -1.822694925f, 0.837181651f};
 
-static void biquad_init(ppg_biquad_t *q, const float *b, const float *a)
-{
-    q->b0 = b[0];
-    q->b1 = b[1];
-    q->b2 = b[2];
-    q->a1 = a[1];
-    q->a2 = a[2];
-    q->z1 = 0.0f;
-    q->z2 = 0.0f;
-}
-
-/* 转置直接 II 型：每样本 5 次乘加，数值稳定 */
-static inline float biquad_step(ppg_biquad_t *q, float x)
-{
-    const float y = q->b0 * x + q->z1;
-    q->z1 = q->b1 * x - q->a1 * y + q->z2;
-    q->z2 = q->b2 * x - q->a2 * y;
-    return y;
-}
+/* 滤波器原语 biquad_init / biquad_step 由 firmware/app/biquad.c 提供（PPG 与 ECG 共用） */
 
 static bool select_coeffs(float fs, coeff_set_t *hp, coeff_set_t *lp)
 {

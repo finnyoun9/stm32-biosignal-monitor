@@ -39,6 +39,7 @@ def build() -> None:
            "-I", os.path.join(ROOT, "firmware", "app"),
            os.path.join(ROOT, "tests", "ppg_algo_host_main.c"),
            os.path.join(ROOT, "firmware", "app", "ppg_algo.c"),
+           os.path.join(ROOT, "firmware", "app", "biquad.c"),
            "-lm", "-o", EXE]
     res = subprocess.run(cmd, capture_output=True, text=True)
     if res.returncode != 0:

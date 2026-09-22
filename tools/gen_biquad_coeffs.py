@@ -7,6 +7,7 @@
 用法：
     ./.venv/bin/python tools/gen_biquad_coeffs.py            # 默认 50/100/200 Hz
     ./.venv/bin/python tools/gen_biquad_coeffs.py --fs 128 --low 0.5 --high 4
+    ./.venv/bin/python tools/gen_biquad_coeffs.py --fs 125 250 --low 5 --high 15   # ECG QRS 带通
 """
 
 from __future__ import annotations
