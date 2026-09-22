@@ -49,7 +49,8 @@
 | 低功耗预算（C vs Python） | **7 例配置逐例一致 + 4 例手算对照 + 反解校验全部通过**：1 分钟一次 → 887 µA / 200 mAh 约 9.4 天；给定 500 µA 目标反解出每周期最多醒 896 ms；目标低于睡眠电流时明确判不可达 | `./.venv/bin/python tests/test_power_budget.py` |
 | 真实数据（BIDMC，8 例 125 窗口） | **MAE 0.45 bpm**、RMSE 1.91、P95 1.18，质量门限 125/125 | `./.venv/bin/python tools/validate_bidmc.py --records bidmc01,...,bidmc08 --quiet` |
 | 采集体检报告 | 一页报告把「这次采集到底行不行」算完：丢包空隙、PI、心率、模板相关性、ECG R 波、双通道偏差 + 波形图；自检用**好/坏两组数据**验证报告能区分（坏数据必须判 FAIL） | `./.venv/bin/python tools/inspect_capture.py --selftest` |
-| CI | GitHub Actions 每次 push 自动跑 9 组（算法/协议/驱动/PPG/功耗/ECG/双通道/体检报告），多次 success | [actions](https://github.com/finnyoun9/stm32-biosignal-monitor/actions) |
+| 工频陷波（50/60 Hz） | 陷波深度 **−95…−110 dB**、10 Hz 保持 −0.00 dB；**在 ECG 上的实际收益**：50 Hz 幅度 ≥2× R 波时，不陷波**检出失败**、开陷波回到正确心率；不支持的组合明确失败 | `./.venv/bin/python tests/test_notch.py`、`tests/test_notch_ecg.py` |
+| CI | GitHub Actions 每次 push 自动跑 11 组（算法/协议/驱动/PPG/功耗/ECG/双通道/体检报告），多次 success | [actions](https://github.com/finnyoun9/stm32-biosignal-monitor/actions) |
 
 > **诚实边界**：P0 证明的是算法与协议的正确性；BIDMC 为 ICU 静息数据，不等价于可穿戴在运动场景下的表现。
 > 真机采集（P1）未完成前，简历与对外沟通中不写「采集链路已跑通」。

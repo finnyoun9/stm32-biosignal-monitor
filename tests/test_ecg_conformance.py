@@ -36,6 +36,7 @@ def build() -> None:
            os.path.join(ROOT, "tests", "ecg_algo_host_main.c"),
            os.path.join(ROOT, "firmware", "app", "ecg_algo.c"),
            os.path.join(ROOT, "firmware", "app", "biquad.c"),
+           os.path.join(ROOT, "firmware", "app", "notch.c"),
            "-lm", "-o", EXE]
     res = subprocess.run(cmd, capture_output=True, text=True)
     if res.returncode != 0:

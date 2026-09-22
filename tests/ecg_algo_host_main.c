@@ -2,8 +2,8 @@
  *
  * 用法：
  *   cc -std=c99 -O2 -I firmware/app -I tests tests/ecg_algo_host_main.c \
- *      firmware/app/ecg_algo.c firmware/app/biquad.c -lm -o /tmp/ecg_algo_host
- *   /tmp/ecg_algo_host data/synth_ecg75.csv ecg 125
+ *      firmware/app/ecg_algo.c firmware/app/biquad.c firmware/app/notch.c -lm -o /tmp/ecg_algo_host
+ *   /tmp/ecg_algo_host data/synth_ecg75.csv ecg 125 [mains_hz]   # 第 4 个参数给 50/60 即开启陷波
  *
  * 输出（供 tests/test_ecg_conformance.py 解析）：
  *   RESULT hr=75.00 beats=38 quality=1 rr_stable=1 ready=1 samples=9375
@@ -24,6 +24,7 @@ int main(int argc, char **argv)
     const char *path = argv[1];
     const char *col = argv[2];
     const float fs = (argc > 3) ? (float)atof(argv[3]) : 125.0f;
+    const float mains = (argc > 4) ? (float)atof(argv[4]) : 0.0f;   /* 0 = 不开陷波 */
 
     FILE *fh = fopen(path, "r");
     if (fh == NULL) {
@@ -45,10 +46,14 @@ int main(int argc, char **argv)
     }
 
     ecg_algo_t algo;
-    ecg_algo_init(&algo, fs);
+    if (mains > 0.0f) {
+        ecg_algo_init_opt(&algo, fs, true, mains);
+    } else {
+        ecg_algo_init(&algo, fs);
+    }
     if (!algo.ready) {
         fclose(fh);
-        fprintf(stderr, "不支持的采样率 %.1f Hz（支持 125/250 的 ±10%%）\n", (double)fs);
+        fprintf(stderr, "不支持的采样率 %.1f Hz（支持 125/250 的 ±10%%）或陷波组合\n", (double)fs);
         return 64;
     }
 

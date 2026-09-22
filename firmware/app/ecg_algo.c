@@ -44,8 +44,21 @@ static bool select_coeffs(float fs, const float **hb, const float **ha,
 
 void ecg_algo_init(ecg_algo_t *a, float fs)
 {
+    ecg_algo_init_opt(a, fs, false, 50.0f);
+}
+
+void ecg_algo_init_opt(ecg_algo_t *a, float fs, bool enable_notch, float mains_hz)
+{
     memset(a, 0, sizeof(*a));
     a->fs = fs;
+    a->notch_enabled = enable_notch;
+    if (enable_notch) {
+        notch_init(&a->notch, fs, mains_hz);
+        if (!a->notch.ready) {
+            a->ready = false;      /* 陷波系数不支持时明确失败，而不是悄悄退化 */
+            return;
+        }
+    }
 
     const float *hb = 0, *ha = 0, *lb = 0, *la = 0;
     if (!select_coeffs(fs, &hb, &ha, &lb, &la)) {
@@ -118,6 +131,11 @@ void ecg_algo_push(ecg_algo_t *a, float sample)
 {
     if (!a->ready) {
         return;
+    }
+
+    /* 0) 可选工频陷波（默认关闭，见头文件说明） */
+    if (a->notch_enabled) {
+        sample = notch_step(&a->notch, sample);
     }
 
     /* 1) 带通 5–15 Hz */

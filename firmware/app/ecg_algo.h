@@ -21,6 +21,7 @@
 #include <stdint.h>
 
 #include "biquad.h"
+#include "notch.h"
 
 #define ECG_MAX_RR 8
 #define ECG_MIN_RR_MS 270.0f
@@ -31,6 +32,8 @@ typedef struct {
     float fs;
     biquad_t hp;                   /* 5 Hz 高通 */
     biquad_t lp;                   /* 15 Hz 低通 */
+    notch_t notch;                 /* 可选工频陷波（仅在看原始/宽带波形或干扰过大时启用） */
+    bool notch_enabled;
 
     /* 5 点差分用的历史 */
     float bp_hist[5];
@@ -80,6 +83,11 @@ typedef struct {
 } ecg_result_t;
 
 void ecg_algo_init(ecg_algo_t *a, float fs);
+
+/* 带选项初始化：enable_notch=true 时在带通之前串一级工频陷波（mains_hz 取 50 或 60）。
+ * 默认 ecg_algo_init() 不开陷波——QRS 检测用 5–15 Hz 带通，本身在 50 Hz 已有 20 dB 以上衰减，
+ * 上陷波只在"原始波形通路 / 干扰幅度远大于 QRS"时才有意义（见 docs/03）。 */
+void ecg_algo_init_opt(ecg_algo_t *a, float fs, bool enable_notch, float mains_hz);
 void ecg_algo_push(ecg_algo_t *a, float sample);
 ecg_result_t ecg_algo_result(const ecg_algo_t *a);
 

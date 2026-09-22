@@ -50,3 +50,9 @@ jobs:
 
       - name: Capture report selftest (good vs bad data)
         run: python tests/test_inspect_capture.py
+
+      - name: Mains notch verification (depth, passband, support range)
+        run: python tests/test_notch.py
+
+      - name: Mains notch benefit on ECG (strong interference)
+        run: python tests/test_notch_ecg.py
